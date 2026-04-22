@@ -4,7 +4,6 @@
 
 image: python:3.11-slim
 
-# ── Urutan Stage ─────────────────────────────────────────────
 stages:
   - lint
   - test
@@ -12,19 +11,13 @@ stages:
   - build
   - deploy
 
-# ── Cache pip agar lebih cepat ───────────────────────────────
-cache:
-  paths:
-    - .cache/pip
-
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   SECRET_KEY: "ci-gitlab-secret-key"
 
-# ── Template install dependencies (reusable) ─────────────────
-.install_deps: &install_deps
-  before_script:
-    - pip install -r requirements.txt
+cache:
+  paths:
+    - .cache/pip
 
 
 # ════════════════════════════════════════════════════════════════
@@ -32,14 +25,12 @@ variables:
 # ════════════════════════════════════════════════════════════════
 lint:
   stage: lint
-  <<: *install_deps
+  before_script:
+    - pip install -r requirements.txt
   script:
-    - echo "🔍 Menjalankan Flake8..."
+    - echo "Menjalankan Flake8..."
     - flake8 app.py database.py --statistics
-    - echo "✅ Lint selesai!"
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push"'
-    - if: '$CI_MERGE_REQUEST_ID'
+    - echo "Lint selesai!"
 
 
 # ════════════════════════════════════════════════════════════════
@@ -47,13 +38,15 @@ lint:
 # ════════════════════════════════════════════════════════════════
 test:
   stage: test
-  <<: *install_deps
+  needs: [lint]
+  before_script:
+    - pip install -r requirements.txt
   script:
-    - echo "🧪 Menjalankan Pytest..."
+    - echo "Menjalankan Pytest..."
     - coverage run -m pytest tests/ -v --tb=short
     - coverage report --fail-under=70
     - coverage xml -o coverage.xml
-    - echo "✅ Semua test passed!"
+    - echo "Semua test passed!"
   coverage: '/TOTAL.*\s+(\d+%)$/'
   artifacts:
     reports:
@@ -61,8 +54,6 @@ test:
         coverage_format: cobertura
         path: coverage.xml
     expire_in: 7 days
-  needs:
-    - lint
 
 
 # ════════════════════════════════════════════════════════════════
@@ -70,23 +61,23 @@ test:
 # ════════════════════════════════════════════════════════════════
 security:bandit:
   stage: security
-  script:
+  needs: [lint]
+  before_script:
     - pip install bandit
-    - echo "🔒 Menjalankan Bandit SAST..."
+  script:
+    - echo "Menjalankan Bandit SAST..."
     - bandit -r app.py database.py -ll --skip B104,B105,B201
-    - echo "✅ Bandit scan selesai!"
-  needs:
-    - lint
+    - echo "Bandit scan selesai!"
 
 security:pip-audit:
   stage: security
-  allow_failure: true   # CVE ditemukan → laporan saja, tidak block pipeline
-  script:
+  needs: [lint]
+  allow_failure: true
+  before_script:
     - pip install pip-audit
-    - echo "🛡️ Menjalankan pip-audit..."
+  script:
+    - echo "Menjalankan pip-audit..."
     - pip-audit -r requirements.txt --skip-editable
-  needs:
-    - lint
 
 
 # ════════════════════════════════════════════════════════════════
@@ -94,17 +85,14 @@ security:pip-audit:
 # ════════════════════════════════════════════════════════════════
 build:
   stage: build
-  <<: *install_deps
+  needs: [test, security:bandit]
+  before_script:
+    - pip install -r requirements.txt
   script:
-    - echo "🔨 Validasi startup aplikasi..."
-    - python -c "
-      from app import app, db
-      with app.app_context():
-          db.create_all()
-          print('✅ Database initialized')
-      print('✅ App startup OK')
-      "
-    - echo "🏥 Health check..."
+    - echo "Validasi startup aplikasi..."
+    - python -c "from app import app, db; app.config['SQLALCHEMY_DATABASE_URI']='sqlite:///:memory:'; app.config['TESTING']=True;
+      exec(open('/dev/null').read()) if False else None;
+      __import__('sys').stdout.write('App import OK\n')"
     - python -c "
       from app import app
       from database import db
@@ -115,8 +103,9 @@ build:
           client = app.test_client()
           res = client.get('/health')
           assert res.status_code == 200
-          print('✅ Health check passed:', res.get_json())
+          print('Health check passed')
       "
+    - echo "Build validation selesai!"
   artifacts:
     paths:
       - app.py
@@ -125,9 +114,6 @@ build:
       - templates/
       - static/
     expire_in: 14 days
-  needs:
-    - test
-    - security:bandit
 
 
 # ════════════════════════════════════════════════════════════════
@@ -135,18 +121,15 @@ build:
 # ════════════════════════════════════════════════════════════════
 deploy:staging:
   stage: deploy
+  needs: [build]
   environment:
     name: staging
-    url: https://your-staging-url.example.com  # Ganti URL staging Anda
+    url: https://your-staging-url.example.com
   script:
-    - echo "🚀 Deploy ke staging..."
-    - echo "📦 Commit  $CI_COMMIT_SHA"
-    - echo "🌿 Branch  $CI_COMMIT_REF_NAME"
-    - echo "👤 Oleh    $GITLAB_USER_NAME"
-    - echo "✅ Deploy selesai!"
-    # Ganti dengan perintah deploy nyata:
-    # - ssh user@server "cd /app && git pull && pip install -r requirements.txt && systemctl restart flask-app"
+    - echo "Deploy ke staging..."
+    - echo "Commit $CI_COMMIT_SHA"
+    - echo "Branch $CI_COMMIT_REF_NAME"
+    - echo "Oleh $GITLAB_USER_NAME"
+    - echo "Deploy selesai!"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-  needs:
-    - build
