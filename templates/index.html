@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Manajemen Produk</h1>
+    <p class="page-subtitle">Kelola seluruh data produk Anda dalam satu tempat</p>
+  </div>
+  <a href="{{ url_for('tambah') }}" class="btn btn-primary" id="btn-tambah-produk">+ Tambah Produk</a>
+</div>
+
+<!-- Stats Cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">📦</div>
+    <div class="stat-info">
+      <span class="stat-value">{{ produk_list | length }}</span>
+      <span class="stat-label">Total Produk</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">💰</div>
+    <div class="stat-info">
+      <span class="stat-value">
+        {% set total_nilai = namespace(v=0) %}
+        {% for p in produk_list %}{% set total_nilai.v = total_nilai.v + (p.harga * p.stok) %}{% endfor %}
+        Rp {{ "{:,.0f}".format(total_nilai.v) }}
+      </span>
+      <span class="stat-label">Total Nilai Stok</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🏷️</div>
+    <div class="stat-info">
+      <span class="stat-value">{{ produk_list | map(attribute='kategori') | unique | list | length }}</span>
+      <span class="stat-label">Kategori</span>
+    </div>
+  </div>
+</div>
+
+<!-- Search Bar -->
+<form method="GET" action="{{ url_for('index') }}" class="search-form">
+  <div class="search-wrapper">
+    <span class="search-icon">🔍</span>
+    <input
+      type="text"
+      name="search"
+      id="input-search"
+      value="{{ search }}"
+      placeholder="Cari nama atau kategori produk..."
+      class="search-input"
+      autocomplete="off"
+    />
+    {% if search %}
+      <a href="{{ url_for('index') }}" class="search-clear" id="btn-clear-search">✕</a>
+    {% endif %}
+    <button type="submit" class="search-btn" id="btn-search">Cari</button>
+  </div>
+</form>
+
+{% if search %}
+  <p class="search-info">Menampilkan <strong>{{ produk_list | length }}</strong> hasil untuk "<em>{{ search }}</em>"</p>
+{% endif %}
+
+<!-- Table -->
+{% if produk_list %}
+<div class="table-wrapper">
+  <table class="data-table" id="tabel-produk">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Nama Produk</th>
+        <th>Kategori</th>
+        <th>Harga</th>
+        <th>Stok</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for produk in produk_list %}
+      <tr class="table-row" style="animation-delay: {{ loop.index0 * 0.05 }}s">
+        <td class="td-num">{{ loop.index }}</td>
+        <td class="td-name">
+          <strong>{{ produk.nama }}</strong>
+          {% if produk.deskripsi %}
+            <small class="td-desc">{{ produk.deskripsi[:60] }}{% if produk.deskripsi|length > 60 %}…{% endif %}</small>
+          {% endif %}
+        </td>
+        <td><span class="badge">{{ produk.kategori or 'Umum' }}</span></td>
+        <td class="td-harga">Rp {{ "{:,.0f}".format(produk.harga) }}</td>
+        <td>
+          <span class="stok-badge {% if produk.stok <= 5 %}stok-low{% elif produk.stok <= 20 %}stok-mid{% else %}stok-ok{% endif %}">
+            {{ produk.stok }}
+          </span>
+        </td>
+        <td class="td-actions">
+          <a href="{{ url_for('detail', id=produk.id) }}" class="btn btn-sm btn-info" id="btn-detail-{{ produk.id }}">Detail</a>
+          <a href="{{ url_for('edit', id=produk.id) }}"   class="btn btn-sm btn-warning" id="btn-edit-{{ produk.id }}">Edit</a>
+          <form method="POST" action="{{ url_for('hapus', id=produk.id) }}" style="display:inline"
+                onsubmit="return confirm('Hapus produk {{ produk.nama }}?')">
+            <button type="submit" class="btn btn-sm btn-danger" id="btn-hapus-{{ produk.id }}">Hapus</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📭</div>
+  <h2>Belum ada produk</h2>
+  <p>{% if search %}Tidak ada produk yang cocok dengan pencarian Anda.{% else %}Mulai dengan menambahkan produk pertama Anda.{% endif %}</p>
+  <a href="{{ url_for('tambah') }}" class="btn btn-primary" id="btn-tambah-empty">+ Tambah Produk</a>
+</div>
+{% endif %}
+{% endblock %}

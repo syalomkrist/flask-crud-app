@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}{% if action == 'edit' %}Edit Produk{% else %}Tambah Produk{% endif %}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="form-card">
+    <div class="form-header">
+      <a href="{{ url_for('index') }}" class="back-btn" id="btn-kembali">← Kembali</a>
+      <h1 class="form-title">
+        {% if action == 'edit' %}✏️ Edit Produk{% else %}➕ Tambah Produk Baru{% endif %}
+      </h1>
+      <p class="form-subtitle">
+        {% if action == 'edit' %}Perbarui informasi produk di bawah ini{% else %}Isi detail produk baru Anda{% endif %}
+      </p>
+    </div>
+
+    <form method="POST"
+          action="{% if action == 'edit' %}{{ url_for('edit', id=produk.id) }}{% else %}{{ url_for('tambah') }}{% endif %}"
+          class="crud-form"
+          id="form-produk">
+
+      <div class="form-group">
+        <label for="nama" class="form-label">Nama Produk <span class="required">*</span></label>
+        <input
+          type="text"
+          name="nama"
+          id="nama"
+          class="form-control"
+          value="{% if produk %}{{ produk.nama }}{% endif %}"
+          placeholder="Contoh: Laptop Gaming Asus"
+          required
+        />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="kategori" class="form-label">Kategori</label>
+          <select name="kategori" id="kategori" class="form-control">
+            {% set cats = ['Elektronik', 'Aksesoris', 'Makanan', 'Minuman', 'Pakaian', 'Otomotif', 'Rumah Tangga', 'Kesehatan', 'Olahraga', 'Umum'] %}
+            {% for cat in cats %}
+              <option value="{{ cat }}" {% if produk and produk.kategori == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="stok" class="form-label">Stok <span class="required">*</span></label>
+          <input
+            type="number"
+            name="stok"
+            id="stok"
+            class="form-control"
+            value="{% if produk %}{{ produk.stok }}{% else %}0{% endif %}"
+            min="0"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="harga" class="form-label">Harga (Rp) <span class="required">*</span></label>
+        <div class="input-prefix-wrapper">
+          <span class="input-prefix">Rp</span>
+          <input
+            type="number"
+            name="harga"
+            id="harga"
+            class="form-control with-prefix"
+            value="{% if produk %}{{ produk.harga | int }}{% else %}0{% endif %}"
+            min="0"
+            step="500"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="deskripsi" class="form-label">Deskripsi</label>
+        <textarea name="deskripsi" id="deskripsi" class="form-control" rows="4"
+                  placeholder="Deskripsi singkat tentang produk ini...">{% if produk %}{{ produk.deskripsi }}{% endif %}</textarea>
+      </div>
+
+      <div class="form-actions">
+        <a href="{{ url_for('index') }}" class="btn btn-ghost" id="btn-batal">Batal</a>
+        <button type="submit" class="btn btn-primary" id="btn-simpan">
+          {% if action == 'edit' %}💾 Simpan Perubahan{% else %}✅ Tambah Produk{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

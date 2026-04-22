@@ -1,0 +1,196 @@
+name: 🚀 CI/CD Pipeline — Flask CRUD App
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  # JOB 1 — Lint & Code Quality
+  # ────────────────────────────────────────────────────────────────
+  lint:
+    name: 🔍 Lint & Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: 📦 Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: ✅ Run Flake8 Linter
+        run: |
+          flake8 app.py database.py \
+            --max-line-length=120 \
+            --exclude=.git,__pycache__,venv \
+            --statistics
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 2 — Automated Tests + Coverage
+  # ────────────────────────────────────────────────────────────────
+  test:
+    name: 🧪 Run Tests & Coverage
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: 📦 Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🧪 Run Pytest with Coverage
+        run: |
+          coverage run -m pytest tests/ -v --tb=short
+          coverage report --min-coverage=70
+          coverage xml -o coverage.xml
+
+      - name: 📊 Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 3 — Security Scan
+  # ────────────────────────────────────────────────────────────────
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: 📦 Install Security Tools
+        run: pip install bandit safety pip-audit
+
+      - name: 🔒 Run Bandit (SAST)
+        run: bandit -r app.py database.py -ll
+
+      - name: 🛡️ Run pip-audit (Dependency Vulnerabilities)
+        run: pip-audit -r requirements.txt --skip-editable
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 4 — Build & Validate
+  # ────────────────────────────────────────────────────────────────
+  build:
+    name: 🔨 Build & Validate App
+    runs-on: ubuntu-latest
+    needs: [test, security]
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: 📦 Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🏃 Validate App Startup
+        env:
+          SECRET_KEY: ci-test-secret-key
+          FLASK_ENV: testing
+        run: |
+          python -c "
+          from app import app, db
+          with app.app_context():
+              db.create_all()
+              print('✅ Database initialized successfully')
+          print('✅ App import and startup validation passed')
+          "
+
+      - name: ✅ Health Check (Simulated)
+        env:
+          SECRET_KEY: ci-test-secret-key
+          FLASK_ENV: testing
+        run: |
+          python -c "
+          from app import app
+          client = app.test_client()
+          app.config['TESTING'] = True
+          app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+          from database import db
+          with app.app_context():
+              db.create_all()
+              res = client.get('/health')
+              assert res.status_code == 200, f'Health check failed: {res.status_code}'
+              print('✅ Health check passed:', res.get_json())
+          "
+
+      - name: 📁 Save Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flask-crud-app-${{ github.sha }}
+          path: |
+            app.py
+            database.py
+            requirements.txt
+            templates/
+            static/
+          retention-days: 14
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 5 — Deploy to Staging (hanya push ke branch main)
+  # ────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: 🌐 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://your-staging-url.example.com  # Ganti dengan URL staging Anda
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: flask-crud-app-${{ github.sha }}
+
+      - name: 🚀 Simulate Deploy (Ganti dengan deploy nyata)
+        run: |
+          echo "📦 Deploying commit ${{ github.sha }} to staging..."
+          echo "🌿 Branch  : ${{ github.ref_name }}"
+          echo "👤 Deployed by: ${{ github.actor }}"
+          echo "✅ Deploy simulation complete!"
+          # Ganti bagian ini dengan perintah deploy nyata, contoh:
+          # ssh user@server "cd /app && git pull && pip install -r requirements.txt && systemctl restart flask-app"
+
+      - name: 🔔 Notify Success
+        run: echo "🎉 Staging deploy berhasil untuk commit ${{ github.sha }}"

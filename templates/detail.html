@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Detail — {{ produk.nama }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="form-card detail-card">
+    <div class="form-header">
+      <a href="{{ url_for('index') }}" class="back-btn" id="btn-kembali-detail">← Kembali</a>
+      <h1 class="form-title">📋 Detail Produk</h1>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-item">
+        <span class="detail-label">Nama Produk</span>
+        <span class="detail-value highlight">{{ produk.nama }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Kategori</span>
+        <span class="detail-value"><span class="badge">{{ produk.kategori or 'Umum' }}</span></span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Harga</span>
+        <span class="detail-value harga-value">Rp {{ "{:,.0f}".format(produk.harga) }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Stok</span>
+        <span class="detail-value">
+          <span class="stok-badge {% if produk.stok <= 5 %}stok-low{% elif produk.stok <= 20 %}stok-mid{% else %}stok-ok{% endif %}">
+            {{ produk.stok }} unit
+          </span>
+        </span>
+      </div>
+      <div class="detail-item full-width">
+        <span class="detail-label">Deskripsi</span>
+        <span class="detail-value">{{ produk.deskripsi or '—' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Ditambahkan</span>
+        <span class="detail-value">{{ produk.created_at.strftime('%d %B %Y, %H:%M') if produk.created_at else '—' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Terakhir Diupdate</span>
+        <span class="detail-value">{{ produk.updated_at.strftime('%d %B %Y, %H:%M') if produk.updated_at else '—' }}</span>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="{{ url_for('index') }}" class="btn btn-ghost" id="btn-kembali-list">← Kembali ke Daftar</a>
+      <a href="{{ url_for('edit', id=produk.id) }}" class="btn btn-warning" id="btn-edit-detail">✏️ Edit Produk</a>
+      <form method="POST" action="{{ url_for('hapus', id=produk.id) }}" style="display:inline"
+            onsubmit="return confirm('Yakin ingin menghapus produk ini?')">
+        <button type="submit" class="btn btn-danger" id="btn-hapus-detail">🗑️ Hapus</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
