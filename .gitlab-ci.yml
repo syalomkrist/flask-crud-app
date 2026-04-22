@@ -16,7 +16,6 @@ cache:
     - .cache/pip
 
 
-# ── STAGE 1: Lint ────────────────────────────────────────────
 lint:
   stage: lint
   before_script:
@@ -25,7 +24,6 @@ lint:
     - flake8 app.py database.py --statistics
 
 
-# ── STAGE 2: Test ────────────────────────────────────────────
 test:
   stage: test
   needs: ["lint"]
@@ -44,7 +42,6 @@ test:
     expire_in: 7 days
 
 
-# ── STAGE 3: Security ────────────────────────────────────────
 bandit-scan:
   stage: security
   needs: ["lint"]
@@ -52,6 +49,7 @@ bandit-scan:
     - pip install bandit
   script:
     - bandit -r app.py database.py -ll --skip B104,B105,B201
+
 
 pip-audit-scan:
   stage: security
@@ -63,21 +61,13 @@ pip-audit-scan:
     - pip-audit -r requirements.txt --skip-editable
 
 
-# ── STAGE 4: Build ───────────────────────────────────────────
 build-validate:
   stage: build
   needs: ["test", "bandit-scan"]
   before_script:
     - pip install -r requirements.txt
   script:
-    - echo "from app import app; from database import db; app.config[\"SQLALCHEMY_DATABASE_URI\"]=\"sqlite:///:memory:\"; app.config[\"TESTING\"]=True" > check_app.py
-    - echo "with app.app_context():" >> check_app.py
-    - echo "    db.create_all()" >> check_app.py
-    - echo "    c = app.test_client()" >> check_app.py
-    - echo "    r = c.get('/health')" >> check_app.py
-    - echo "    assert r.status_code == 200, f'health check failed {r.status_code}'" >> check_app.py
-    - echo "    print('Health check passed:', r.get_json())" >> check_app.py
-    - python check_app.py
+    - python validate_app.py
   artifacts:
     paths:
       - app.py
@@ -88,7 +78,6 @@ build-validate:
     expire_in: 14 days
 
 
-# ── STAGE 5: Deploy ──────────────────────────────────────────
 deploy-staging:
   stage: deploy
   needs: ["build-validate"]
@@ -96,8 +85,7 @@ deploy-staging:
     name: staging
     url: https://your-staging-url.example.com
   script:
-    - echo "Deploying commit $CI_COMMIT_SHA to staging..."
-    - echo "Branch $CI_COMMIT_REF_NAME by $GITLAB_USER_NAME"
+    - echo "Deploying $CI_COMMIT_SHA by $GITLAB_USER_NAME"
     - echo "Deploy simulation complete!"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
