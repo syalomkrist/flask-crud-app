@@ -116,6 +116,7 @@ def api_list():
     produk_list = Produk.query.order_by(Produk.id.desc()).all()
     return jsonify([p.to_dict() for p in produk_list])
 
+
 @app.route('/api/produk/<int:id>', methods=['GET'])
 def api_detail(id):
     produk = Produk.query.get_or_404(id)
