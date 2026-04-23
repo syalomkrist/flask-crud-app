@@ -116,8 +116,8 @@ deploy-staging:
     name: staging
     url: https://your-staging-url.example.com
   script:
-    - echo "Deploying commit $CI_COMMIT_SHA by $GITLAB_USER_NAME to staging..."
-    - echo "Branch: $CI_COMMIT_BRANCH"
-    - echo "Deploy simulation complete!"
+    - 'echo "Deploying commit $CI_COMMIT_SHA by $GITLAB_USER_NAME to staging..."'
+    - 'echo "Branch: $CI_COMMIT_BRANCH"'
+    - 'echo "Deploy simulation complete!"'
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
