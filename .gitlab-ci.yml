@@ -8,54 +8,116 @@ stages:
   - deploy
 
 variables:
-  SECRET_KEY: "ci-gitlab-secret-key"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  SECRET_KEY: "ci-gitlab-secret-key"
 
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .cache/pip
+
+
+# ---------------------------------------------------------------
+# JOB 1 - Lint & Code Quality
+# ---------------------------------------------------------------
 lint:
   stage: lint
+  tags:
+    - windows
   before_script:
     - pip install -r requirements.txt
   script:
     - flake8 app.py database.py --statistics
 
+
+# ---------------------------------------------------------------
+# JOB 2 - Automated Tests + Coverage
+# ---------------------------------------------------------------
 test:
   stage: test
+  tags:
+    - windows
+  needs: ["lint"]
   before_script:
     - pip install -r requirements.txt
   script:
     - coverage run -m pytest tests/ -v --tb=short
     - coverage report --fail-under=70
     - coverage xml -o coverage.xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    expire_in: 7 days
 
+
+# ---------------------------------------------------------------
+# JOB 3 - Security: SAST (Bandit)
+# ---------------------------------------------------------------
 bandit-scan:
   stage: security
+  tags:
+    - windows
+  needs: ["lint"]
   before_script:
     - pip install bandit
   script:
     - bandit -r app.py database.py -ll --skip B104,B105,B201
 
+
+# ---------------------------------------------------------------
+# JOB 4 - Security: Dependency Audit (pip-audit)
+# ---------------------------------------------------------------
 pip-audit-scan:
   stage: security
+  tags:
+    - windows
+  needs: ["lint"]
   allow_failure: true
   before_script:
     - pip install pip-audit
   script:
     - pip-audit -r requirements.txt --skip-editable
 
+
+# ---------------------------------------------------------------
+# JOB 5 - Build & Validate App
+# ---------------------------------------------------------------
 build-validate:
   stage: build
+  tags:
+    - windows
+  needs: ["test", "bandit-scan"]
   before_script:
     - pip install -r requirements.txt
   script:
     - python validate_app.py
+  artifacts:
+    paths:
+      - app.py
+      - database.py
+      - requirements.txt
+      - templates/
+      - static/
+    expire_in: 14 days
 
+
+# ---------------------------------------------------------------
+# JOB 6 - Deploy to Staging (main branch only)
+# ---------------------------------------------------------------
 deploy-staging:
   stage: deploy
+  tags:
+    - windows
+  needs: ["build-validate"]
   environment:
     name: staging
     url: https://your-staging-url.example.com
   script:
     - echo "Deploying commit $CI_COMMIT_SHA by $GITLAB_USER_NAME to staging..."
-    - echo "Branch $CI_COMMIT_BRANCH - Deploy simulation complete!"
+    - echo "Branch: $CI_COMMIT_BRANCH"
+    - echo "Deploy simulation complete!"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
