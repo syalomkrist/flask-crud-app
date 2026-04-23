@@ -75,7 +75,7 @@ pip-audit-scan:
   tags:
     - windows
   needs: ["lint"]
-  allow_failure: true
+  allow_failure: false
   before_script:
     - pip install pip-audit
   script:
@@ -89,7 +89,7 @@ build-validate:
   stage: build
   tags:
     - windows
-  needs: ["test", "bandit-scan"]
+  needs: ["test", "bandit-scan", "pip-audit-scan"]
   before_script:
     - pip install -r requirements.txt
   script:
