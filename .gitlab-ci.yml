@@ -17,9 +17,9 @@ cache:
     - .cache/pip
 
 
-# ──────────────────────────────────────────────────────────────
-# JOB 1 — Lint & Code Quality
-# ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------
+# JOB 1 - Lint & Code Quality
+# ---------------------------------------------------------------
 lint:
   stage: lint
   before_script:
@@ -28,9 +28,9 @@ lint:
     - flake8 app.py database.py --statistics
 
 
-# ──────────────────────────────────────────────────────────────
-# JOB 2 — Automated Tests + Coverage
-# ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------
+# JOB 2 - Automated Tests + Coverage
+# ---------------------------------------------------------------
 test:
   stage: test
   needs: ["lint"]
@@ -49,9 +49,9 @@ test:
     expire_in: 7 days
 
 
-# ──────────────────────────────────────────────────────────────
-# JOB 3 — Security: SAST (Bandit)
-# ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------
+# JOB 3 - Security: SAST (Bandit)
+# ---------------------------------------------------------------
 bandit-scan:
   stage: security
   needs: ["lint"]
@@ -61,9 +61,9 @@ bandit-scan:
     - bandit -r app.py database.py -ll --skip B104,B105,B201
 
 
-# ──────────────────────────────────────────────────────────────
-# JOB 4 — Security: Dependency Audit (pip-audit)
-# ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------
+# JOB 4 - Security: Dependency Audit (pip-audit)
+# ---------------------------------------------------------------
 pip-audit-scan:
   stage: security
   needs: ["lint"]
@@ -74,9 +74,9 @@ pip-audit-scan:
     - pip-audit -r requirements.txt --skip-editable
 
 
-# ──────────────────────────────────────────────────────────────
-# JOB 5 — Build & Validate App
-# ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------
+# JOB 5 - Build & Validate App
+# ---------------------------------------------------------------
 build-validate:
   stage: build
   needs: ["test", "bandit-scan"]
@@ -94,9 +94,9 @@ build-validate:
     expire_in: 14 days
 
 
-# ──────────────────────────────────────────────────────────────
-# JOB 6 — Deploy to Staging (main branch only)
-# ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------
+# JOB 6 - Deploy to Staging (main branch only)
+# ---------------------------------------------------------------
 deploy-staging:
   stage: deploy
   needs: ["build-validate"]
@@ -107,7 +107,7 @@ deploy-staging:
     - echo "Deploying commit $CI_COMMIT_SHA by $GITLAB_USER_NAME to staging..."
     - echo "Branch: $CI_COMMIT_BRANCH"
     - echo "Deploy simulation complete!"
-    # Replace the lines below with your real deploy command, e.g.:
+    # Replace with your real deploy command, e.g.:
     # ssh user@server "cd /app && git pull && pip install -r requirements.txt && systemctl restart flask-app"
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: '$CI_COMMIT_BRANCH == "main"'
